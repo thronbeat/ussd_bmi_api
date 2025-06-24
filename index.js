@@ -5,10 +5,12 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// GET request: basic connectivity test
 app.get('/ussd', (req, res) => {
   res.send(`CON Welcome to Health BMI App`);
 });
 
+// POST request: USSD interaction logic
 app.post('/ussd', async (req, res) => {
   const { sessionId, phoneNumber, text = '' } = req.body;
   let inputs = text.split('*');
@@ -18,7 +20,7 @@ app.post('/ussd', async (req, res) => {
   console.log(`Session: ${sessionId}, Phone: ${phoneNumber}, Text: ${text}, Inputs:`, inputs);
 
   try {
-    // Insert user if selecting language
+    // Insert user on language selection
     if (lang === '1' || lang === '2') {
       await pool.query(
         `INSERT INTO users (phone_number, language)
@@ -28,15 +30,17 @@ app.post('/ussd', async (req, res) => {
       );
     }
 
+    // Get user id
     const userResult = await pool.query('SELECT id FROM users WHERE phone_number = $1', [phoneNumber]);
     const userId = userResult.rows.length ? userResult.rows[0].id : null;
 
-    // Back navigation handling
+    // Handle back navigation (input '0')
     if (inputs.includes('0')) {
       const index = inputs.lastIndexOf('0');
-      inputs = inputs.slice(0, index); // Go back one level
+      inputs = inputs.slice(0, index);
     }
 
+    // Menu navigation logic
     if (inputs.length === 0 || inputs[0] === '') {
       response = `CON Welcome to Health BMI App
 1. English
@@ -69,11 +73,12 @@ app.post('/ussd', async (req, res) => {
         else if (bmi < 30) status = inputs[0] === '1' ? 'Overweight' : 'Ufite ibiro byinshi';
         else status = inputs[0] === '1' ? 'Obese' : 'Ufite ibiro bikabije';
 
+        // Save session with phone number
         if (userId) {
           await pool.query(
-            `INSERT INTO bmi_sessions (user_id, session_id, weight, height, bmi, status)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [userId, sessionId, weight, height, bmi, status]
+            `INSERT INTO bmi_sessions (user_id, phone_number, session_id, weight, height, bmi, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [userId, phoneNumber, sessionId, weight, height, bmi, status]
           );
         }
 
@@ -131,14 +136,17 @@ Waba ushaka inama z'ubuzima?
         : 'END Ikosa ryabaye. Ongera utangire.';
     }
 
+    // Send response
     res.set('Content-Type', 'text/plain');
     res.send(response);
+
   } catch (error) {
     console.error('Error:', error);
     res.status(500).send('END Internal server error.');
   }
 });
 
+// Start server
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`✅ USSD BMI app running at http://localhost:${PORT}/ussd`);
