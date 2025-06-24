@@ -1,16 +1,16 @@
-require('dotenv').config();
 const express = require('express');
 const pool = require('./db');
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 app.get('/ussd', (req, res) => {
   res.send(`CON Welcome to Health BMI App`);
 });
 
 app.post('/ussd', async (req, res) => {
-  const { sessionId, phoneNumber, text } = req.body;
+  const { sessionId, phoneNumber, text = '' } = req.body;
   const inputs = text.split('*');
   const lang = inputs[0];
   let response = '';
@@ -126,7 +126,7 @@ Waba ushaka inama z'ubuzima?
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`USSD app running at http://localhost:${PORT}/ussd`);
+  console.log(`✅ USSD BMI app running at http://localhost:${PORT}/ussd`);
 });
